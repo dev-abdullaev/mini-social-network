@@ -1,6 +1,9 @@
+from datetime import timedelta
+
 from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
+from django.utils import timezone
 
 from .models import User
 
@@ -24,3 +27,12 @@ def send_verification_email(self, user_id, token):
         )
     except Exception as exc:
         raise self.retry(exc=exc) from exc
+
+
+@shared_task
+def cleanup_unverified_users():
+    cutoff = timezone.now() - timedelta(hours=settings.UNVERIFIED_USER_TTL_HOURS)
+    stale = User.objects.filter(is_verified=False, is_staff=False, created_at__lt=cutoff)
+    count = stale.count()
+    stale.delete()
+    return count
