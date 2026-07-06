@@ -1,13 +1,15 @@
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import generics, viewsets
+from rest_framework import generics, status, viewsets
 from rest_framework.filters import SearchFilter
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.core.permissions import IsOwnerOrReadOnly, IsVerified
 
 from .filters import PostFilter
-from .models import Comment, Post
+from .models import Comment, Like, Post
 from .serializers import (
     CommentSerializer,
     PostDetailSerializer,
@@ -61,3 +63,27 @@ class CommentDeleteView(generics.DestroyAPIView):
 
     def get_queryset(self):
         return Comment.objects.filter(post_id=self.kwargs["post_id"])
+
+
+class LikeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, post_id):
+        post = get_object_or_404(Post, pk=post_id)
+        if post.author_id == request.user.id:
+            return Response(
+                {"detail": "You cannot like your own post."}, status=status.HTTP_403_FORBIDDEN
+            )
+        _, created = Like.objects.get_or_create(user=request.user, post=post)
+        if not created:
+            return Response(
+                {"detail": "You have already liked this post."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response({"detail": "Liked."}, status=status.HTTP_201_CREATED)
+
+    def delete(self, request, post_id):
+        deleted, _ = Like.objects.filter(user=request.user, post_id=post_id).delete()
+        if not deleted:
+            return Response({"detail": "Like not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)

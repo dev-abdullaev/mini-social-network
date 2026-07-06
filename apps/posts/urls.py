@@ -1,7 +1,7 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .views import CommentDeleteView, CommentListCreateView, PostViewSet
+from .views import CommentDeleteView, CommentListCreateView, LikeView, PostViewSet
 
 router = DefaultRouter()
 router.register("posts", PostViewSet, basename="post")
@@ -17,5 +17,6 @@ urlpatterns = [
         CommentDeleteView.as_view(),
         name="post-comment-delete",
     ),
+    path("posts/<uuid:post_id>/like/", LikeView.as_view(), name="post-like"),
     *router.urls,
 ]
