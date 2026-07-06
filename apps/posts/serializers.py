@@ -37,3 +37,22 @@ class PostDetailSerializer(PostSerializer):
 
     class Meta(PostSerializer.Meta):
         fields = PostSerializer.Meta.fields + ["comments"]
+
+
+class FeedPostSerializer(serializers.ModelSerializer):
+    likes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Post
+        fields = ["id", "title", "content", "likes"]
+
+    def get_likes(self, obj):
+        return [str(like.user_id) for like in obj.likes.all()]
+
+
+class FeedUserSerializer(serializers.ModelSerializer):
+    posts = FeedPostSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = User
+        fields = ["username", "posts"]

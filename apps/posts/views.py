@@ -1,17 +1,20 @@
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, status, viewsets
 from rest_framework.filters import SearchFilter
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.permissions import IsOwnerOrReadOnly, IsVerified
+from apps.users.models import User
 
 from .filters import PostFilter
 from .models import Comment, Like, Post
 from .serializers import (
     CommentSerializer,
+    FeedUserSerializer,
     PostDetailSerializer,
     PostSerializer,
 )
@@ -87,3 +90,21 @@ class LikeView(APIView):
         if not deleted:
             return Response({"detail": "Like not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class FeedView(generics.ListAPIView):
+    serializer_class = FeedUserSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        return (
+            User.objects.filter(posts__isnull=False)
+            .distinct()
+            .order_by("username")
+            .prefetch_related(
+                Prefetch(
+                    "posts",
+                    queryset=Post.objects.order_by("-created_at").prefetch_related("likes"),
+                )
+            )
+        )

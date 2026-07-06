@@ -1,12 +1,19 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .views import CommentDeleteView, CommentListCreateView, LikeView, PostViewSet
+from .views import (
+    CommentDeleteView,
+    CommentListCreateView,
+    FeedView,
+    LikeView,
+    PostViewSet,
+)
 
 router = DefaultRouter()
 router.register("posts", PostViewSet, basename="post")
 
 urlpatterns = [
+    path("feed/", FeedView.as_view(), name="feed"),
     path(
         "posts/<uuid:post_id>/comments/",
         CommentListCreateView.as_view(),
