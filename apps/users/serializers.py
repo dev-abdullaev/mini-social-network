@@ -50,3 +50,20 @@ class LoginSerializer(serializers.Serializer):
         if not attrs.get("email") and not attrs.get("username"):
             raise serializers.ValidationError("Provide email or username.")
         return attrs
+
+
+class UserUpdateSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(
+        min_length=3,
+        max_length=32,
+        required=False,
+        validators=[USERNAME_VALIDATOR, UniqueValidator(queryset=User.objects.all())],
+    )
+    full_name = serializers.CharField(
+        min_length=2, max_length=100, required=False, validators=[FULL_NAME_VALIDATOR]
+    )
+
+    class Meta:
+        model = User
+        fields = ["id", "email", "username", "full_name", "is_verified", "created_at"]
+        read_only_fields = ["id", "email", "is_verified", "created_at"]
