@@ -1,7 +1,7 @@
 import factory
 from django.contrib.auth import get_user_model
 
-from apps.posts.models import Post
+from apps.posts.models import Comment, Post
 
 User = get_user_model()
 
@@ -25,3 +25,12 @@ class PostFactory(factory.django.DjangoModelFactory):
     author = factory.SubFactory(UserFactory)
     title = factory.Sequence(lambda n: f"Post title {n}")
     content = factory.Faker("paragraph")
+
+
+class CommentFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Comment
+
+    post = factory.SubFactory(PostFactory)
+    author = factory.SubFactory(UserFactory)
+    content = factory.Faker("sentence")
