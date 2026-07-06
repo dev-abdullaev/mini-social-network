@@ -73,6 +73,20 @@ def test_patch_foreign_post_forbidden(api_client):
     assert response.status_code == 403
 
 
+def test_patch_anonymous_unauthorized(api_client):
+    post = PostFactory()
+    response = api_client.patch(detail_url(post.id), {"title": "Anon title"})
+    assert response.status_code == 401
+
+
+def test_patch_unverified_forbidden(api_client):
+    post = PostFactory()
+    unverified = UserFactory(is_verified=False)
+    api_client.force_authenticate(user=unverified)
+    response = api_client.patch(detail_url(post.id), {"title": "Nope title"})
+    assert response.status_code == 403
+
+
 def test_delete_own_post(api_client):
     post = PostFactory()
     api_client.force_authenticate(user=post.author)
@@ -88,3 +102,17 @@ def test_delete_foreign_post_forbidden(api_client):
     response = api_client.delete(detail_url(post.id))
     assert response.status_code == 403
     assert Post.objects.count() == 1
+
+
+def test_delete_anonymous_unauthorized(api_client):
+    post = PostFactory()
+    response = api_client.delete(detail_url(post.id))
+    assert response.status_code == 401
+
+
+def test_delete_unverified_forbidden(api_client):
+    post = PostFactory()
+    unverified = UserFactory(is_verified=False)
+    api_client.force_authenticate(user=unverified)
+    response = api_client.delete(detail_url(post.id))
+    assert response.status_code == 403
