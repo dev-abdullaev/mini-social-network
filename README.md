@@ -86,7 +86,8 @@ container console instead of sending them.
 
 Login is throttled (`LOGIN_THROTTLE_RATE`, default 10/min) and locks an
 account identifier for `LOGIN_LOCKOUT_MINUTES` after `LOGIN_MAX_FAILURES`
-consecutive failures.
+consecutive failures. Registration and resend-verification are throttled via
+`REGISTER_THROTTLE_RATE` (default 10/hour) to prevent email-amplification abuse.
 
 ## Running tests locally
 

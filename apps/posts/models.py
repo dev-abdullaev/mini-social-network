@@ -43,6 +43,7 @@ class Like(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        ordering = ["created_at"]
         constraints = [
             models.UniqueConstraint(fields=["user", "post"], name="unique_user_post_like")
         ]

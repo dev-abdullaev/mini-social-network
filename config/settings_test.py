@@ -9,5 +9,5 @@ CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,  # noqa: F405
-    "DEFAULT_THROTTLE_RATES": {"login": "1000/min"},
+    "DEFAULT_THROTTLE_RATES": {"login": "1000/min", "register": "1000/min"},
 }
