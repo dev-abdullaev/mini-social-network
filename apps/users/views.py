@@ -82,19 +82,24 @@ class VerifyEmailView(APIView):
     )
     def get(self, request):
         token_value = request.query_params.get("token", "")
-        token = (
-            EmailVerificationToken.objects.select_related("user").filter(token=token_value).first()
-        )
-        if token is None or not token.is_valid:
-            return Response(
-                {"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST
+        with transaction.atomic():
+            token = (
+                EmailVerificationToken.objects.select_for_update()
+                .select_related("user")
+                .filter(token=token_value)
+                .first()
             )
-        token.used_at = timezone.now()
-        token.save(update_fields=["used_at"])
-        user = token.user
-        if not user.is_verified:
-            user.is_verified = True
-            user.save(update_fields=["is_verified", "updated_at"])
+            if token is None or not token.is_valid:
+                return Response(
+                    {"detail": "Invalid or expired token."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            token.used_at = timezone.now()
+            token.save(update_fields=["used_at"])
+            user = token.user
+            if not user.is_verified:
+                user.is_verified = True
+                user.save(update_fields=["is_verified", "updated_at"])
         return Response({"detail": "Email verified."})
 
 

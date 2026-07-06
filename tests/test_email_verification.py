@@ -62,3 +62,8 @@ def test_resend_already_verified(api_client):
     api_client.force_authenticate(user=user)
     response = api_client.post(RESEND_URL)
     assert response.status_code == 400
+
+
+def test_resend_requires_auth(api_client):
+    response = api_client.post(RESEND_URL)
+    assert response.status_code == 401
