@@ -1,4 +1,6 @@
 from django.db import IntegrityError, transaction
+from django.utils import timezone
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, status
 from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -69,3 +71,41 @@ class UserMeView(generics.UpdateAPIView):
                 serializer.save()
         except IntegrityError as exc:
             raise ValidationError({"username": ["This username is already taken."]}) from exc
+
+
+class VerifyEmailView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        parameters=[OpenApiParameter(name="token", type=str, required=True)],
+        responses={200: None, 400: None},
+    )
+    def get(self, request):
+        token_value = request.query_params.get("token", "")
+        token = (
+            EmailVerificationToken.objects.select_related("user").filter(token=token_value).first()
+        )
+        if token is None or not token.is_valid:
+            return Response(
+                {"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        token.used_at = timezone.now()
+        token.save(update_fields=["used_at"])
+        user = token.user
+        if not user.is_verified:
+            user.is_verified = True
+            user.save(update_fields=["is_verified", "updated_at"])
+        return Response({"detail": "Email verified."})
+
+
+class ResendVerificationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.user.is_verified:
+            return Response(
+                {"detail": "Email is already verified."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        token = EmailVerificationToken.issue(request.user)
+        send_verification_email.delay(str(request.user.id), token.token)
+        return Response({"detail": "Verification email sent."})
