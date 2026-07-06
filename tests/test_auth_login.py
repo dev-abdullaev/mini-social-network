@@ -10,9 +10,7 @@ ME_URL = "/api/auth/me/"
 
 @pytest.fixture
 def user():
-    user = UserFactory(email="kam@example.com", username="kamran")
-    user.save()
-    return user
+    return UserFactory(email="kam@example.com", username="kamran")
 
 
 def test_login_with_email(api_client, user):

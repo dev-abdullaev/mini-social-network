@@ -13,4 +13,4 @@ class UserFactory(factory.django.DjangoModelFactory):
     username = factory.Sequence(lambda n: f"user{n}")
     full_name = factory.Faker("name")
     is_verified = True
-    password = factory.PostGenerationMethodCall("set_password", "password123")
+    password = factory.django.Password("password123")
