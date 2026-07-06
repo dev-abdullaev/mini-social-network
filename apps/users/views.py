@@ -62,3 +62,10 @@ class UserMeView(generics.UpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+    def perform_update(self, serializer):
+        try:
+            with transaction.atomic():
+                serializer.save()
+        except IntegrityError as exc:
+            raise ValidationError({"username": ["This username is already taken."]}) from exc

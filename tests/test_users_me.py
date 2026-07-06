@@ -1,4 +1,7 @@
+from unittest.mock import patch
+
 import pytest
+from django.db import IntegrityError
 
 from tests.factories import UserFactory
 
@@ -45,3 +48,12 @@ def test_cannot_change_email_or_verified(api_client):
     user.refresh_from_db()
     assert user.email == "orig@example.com"
     assert user.is_verified is True
+
+
+def test_update_username_race_returns_400(api_client):
+    user = UserFactory()
+    api_client.force_authenticate(user=user)
+    with patch("apps.users.serializers.UserUpdateSerializer.save", side_effect=IntegrityError):
+        response = api_client.patch(URL, {"username": "raced"})
+    assert response.status_code == 400
+    assert "username" in response.json()
