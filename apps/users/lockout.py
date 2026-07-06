@@ -17,8 +17,12 @@ def is_locked(identifier):
 def register_failure(identifier):
     ttl = settings.LOGIN_LOCKOUT_MINUTES * 60
     key = _failures_key(identifier)
-    failures = cache.get(key, 0) + 1
-    cache.set(key, failures, timeout=ttl)
+    cache.add(key, 0, timeout=ttl)
+    try:
+        failures = cache.incr(key)
+    except ValueError:
+        cache.set(key, 1, timeout=ttl)
+        failures = 1
     if failures >= settings.LOGIN_MAX_FAILURES:
         cache.set(_lock_key(identifier), True, timeout=ttl)
         cache.delete(key)
