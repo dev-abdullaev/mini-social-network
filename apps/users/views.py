@@ -5,9 +5,11 @@ from rest_framework import generics, status
 from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from . import lockout
 from .models import EmailVerificationToken, User
 from .serializers import LoginSerializer, RegisterSerializer, UserSerializer, UserUpdateSerializer
 from .tasks import send_verification_email
@@ -34,17 +36,27 @@ class RegisterView(generics.CreateAPIView):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        identifier = data.get("email") or data.get("username")
+        if lockout.is_locked(identifier):
+            return Response(
+                {"detail": "Too many failed attempts. Try again later."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
         if data.get("email"):
             user = User.objects.filter(email__iexact=data["email"]).first()
         else:
             user = User.objects.filter(username__iexact=data["username"]).first()
         if user is None or not user.is_active or not user.check_password(data["password"]):
+            lockout.register_failure(identifier)
             raise AuthenticationFailed("Invalid credentials.")
+        lockout.reset(identifier)
         refresh = RefreshToken.for_user(user)
         return Response({"access": str(refresh.access_token), "refresh": str(refresh)})
 
