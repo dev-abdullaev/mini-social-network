@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from apps.posts.models import Post
 from apps.posts.tasks import cleanup_old_posts
-from apps.users.models import User
+from apps.users.models import EmailVerificationToken, User
 from apps.users.tasks import cleanup_unverified_users
 from tests.factories import PostFactory, UserFactory
 
@@ -19,10 +19,12 @@ def backdate_user(user, hours):
 
 def test_cleanup_deletes_stale_unverified():
     stale = UserFactory(is_verified=False)
+    EmailVerificationToken.issue(stale)
     backdate_user(stale, hours=48)
     deleted = cleanup_unverified_users()
     assert deleted == 1
     assert not User.objects.filter(pk=stale.pk).exists()
+    assert EmailVerificationToken.objects.count() == 0
 
 
 def test_cleanup_keeps_fresh_unverified():
