@@ -39,3 +39,14 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
+
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=False)
+    username = serializers.CharField(required=False)
+    password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        if not attrs.get("email") and not attrs.get("username"):
+            raise serializers.ValidationError("Provide email or username.")
+        return attrs
