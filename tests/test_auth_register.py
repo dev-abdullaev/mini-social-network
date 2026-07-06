@@ -1,7 +1,11 @@
+from unittest.mock import patch
+
 import pytest
+from celery.exceptions import Retry
 from django.core import mail
 
-from apps.users.models import User
+from apps.users.models import EmailVerificationToken, User
+from apps.users.tasks import send_verification_email
 from tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -61,3 +65,11 @@ def test_register_validation_errors(api_client, field, value):
     response = api_client.post(REGISTER_URL, payload)
     assert response.status_code == 400
     assert field in response.json()
+
+
+def test_send_verification_email_retries_on_failure():
+    user = UserFactory(is_verified=False)
+    token = EmailVerificationToken.issue(user)
+    with patch("apps.users.tasks.send_mail", side_effect=OSError("smtp down")):
+        with pytest.raises(Retry):
+            send_verification_email.apply(args=[str(user.id), token.token], throw=True)
