@@ -50,6 +50,17 @@ def test_create_comment_missing_post(api_client):
     assert response.status_code == 404
 
 
+def test_create_comment_anonymous_unauthorized(api_client):
+    post = PostFactory()
+    response = api_client.post(comments_url(post.id), {"content": "Hi"})
+    assert response.status_code == 401
+
+
+def test_list_comments_missing_post(api_client):
+    response = api_client.get(comments_url("00000000-0000-0000-0000-000000000000"))
+    assert response.status_code == 404
+
+
 def test_create_comment_too_long(api_client):
     post = PostFactory()
     user = UserFactory(is_verified=True)

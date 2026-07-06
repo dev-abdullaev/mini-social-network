@@ -42,6 +42,7 @@ class CommentListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticatedOrReadOnly, IsVerified]
 
     def get_queryset(self):
+        get_object_or_404(Post, pk=self.kwargs["post_id"])
         return (
             Comment.objects.filter(post_id=self.kwargs["post_id"])
             .select_related("author")
