@@ -94,3 +94,8 @@ consecutive failures. Registration and resend-verification are throttled via
     docker compose up -d db redis
     python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
     .venv/bin/pytest
+
+Note: running bare `manage.py` commands on the host (outside docker and
+pytest) requires `DEBUG=1` or a real `SECRET_KEY` in the environment — the
+settings refuse to boot a production-shaped config with the insecure
+fallback key.
