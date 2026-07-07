@@ -68,13 +68,13 @@ container console instead of sending them.
 
 ## Project structure
 
-    config/                  # urls, celery app
-    config/settings/         # base/local/dev/prod/test settings package
-    requirements/             # base/local/dev/prod requirement files
-    apps/core/    # shared pagination + permission classes
-    apps/users/   # User model, JWT auth, email verification, cleanup task
-    apps/posts/   # posts, comments, likes, feed, post TTL task
-    tests/        # pytest suite
+    config/            # urls, celery app
+    config/settings/   # base / local / dev / prod / test settings package
+    requirements/      # base / local / dev / prod requirement files
+    apps/core/         # shared pagination + permission classes
+    apps/users/        # User model, JWT auth, email verification, cleanup task
+    apps/posts/        # posts, comments, likes, feed, post TTL task
+    tests/             # pytest suite
 
 ## Background jobs
 
