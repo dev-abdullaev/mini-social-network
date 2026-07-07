@@ -51,19 +51,27 @@ container console instead of sending them.
 | POST | /api/auth/register/ | — |
 | POST | /api/auth/login/ | — (throttled) |
 | POST | /api/auth/refresh/ | — |
+| POST | /api/auth/logout/ | JWT (blacklists refresh) |
 | GET | /api/auth/me/ | JWT |
 | GET | /api/auth/verify-email/?token= | — |
 | POST | /api/auth/resend-verification/ | JWT |
-| PATCH | /api/users/me/ | JWT |
+| POST | /api/auth/password-reset/ | — (emails a reset link) |
+| POST | /api/auth/password-reset/confirm/ | — (token + new password) |
+| PATCH | /api/users/me/ | JWT (full_name, username, avatar) |
+| POST/DELETE | /api/users/{id}/follow/ | JWT |
+| GET | /api/users/{id}/followers/ | — |
+| GET | /api/users/{id}/following/ | — |
 | GET | /api/posts/ | — |
-| POST | /api/posts/ | JWT + verified |
+| POST | /api/posts/ | JWT + verified (title, content, image) |
 | GET | /api/posts/{id}/ | — |
 | PATCH/DELETE | /api/posts/{id}/ | JWT, author only |
 | GET | /api/posts/{id}/comments/ | — |
 | POST | /api/posts/{id}/comments/ | JWT + verified |
 | DELETE | /api/posts/{id}/comments/{comment_id}/ | JWT, author only |
 | POST/DELETE | /api/posts/{id}/like/ | JWT |
-| GET | /api/feed/ | — |
+| GET | /api/feed/ | — (users grouped) |
+| GET | /api/feed/following/ | JWT (posts from followed users) |
+| GET | /api/admin/ | staff session |
 | GET | /api/docs/, /api/redoc/, /api/schema/ | — |
 
 ## Project structure
@@ -71,9 +79,9 @@ container console instead of sending them.
     config/            # urls, celery app
     config/settings/   # base / local / dev / prod / test settings package
     requirements/      # base / local / dev / prod requirement files
-    apps/core/         # shared pagination + permission classes
-    apps/users/        # User model, JWT auth, email verification, cleanup task
-    apps/posts/        # posts, comments, likes, feed, post TTL task
+    apps/core/         # shared pagination + permission classes + abstract base models
+    apps/users/        # User, JWT auth, email verification, password reset, follow, admin
+    apps/posts/        # posts, comments, likes, feed, follow-feed, post TTL task
     tests/             # pytest suite
 
 ## Background jobs
@@ -90,6 +98,36 @@ Login is throttled (`LOGIN_THROTTLE_RATE`, default 10/min) and locks an
 account identifier for `LOGIN_LOCKOUT_MINUTES` after `LOGIN_MAX_FAILURES`
 consecutive failures. Registration and resend-verification are throttled via
 `REGISTER_THROTTLE_RATE` (default 10/hour) to prevent email-amplification abuse.
+
+## Auth lifecycle
+
+- **Logout** (`POST /api/auth/logout/` with `{"refresh": ...}`) blacklists the
+  refresh token; refresh rotation is on, so a rotated-away refresh is also
+  blacklisted.
+- **Password reset**: `POST /api/auth/password-reset/` always returns 200
+  (never reveals whether the email exists) and emails a link with a token
+  valid for `PASSWORD_RESET_TOKEN_TTL_HOURS` (default 1). `POST
+  /api/auth/password-reset/confirm/` takes `{"token", "new_password"}`,
+  resets the password, and revokes all of that user's existing refresh
+  tokens. The emailed link targets the confirm endpoint — a frontend renders
+  the new-password form and POSTs to it (the endpoint is POST-only by design).
+
+## Follow / feed
+
+Users follow each other (`POST/DELETE /api/users/{id}/follow/`, no self-follow,
+no duplicates — enforced by a DB unique + check constraint). `GET
+/api/feed/following/` returns a paginated, newest-first list of posts authored
+by users the caller follows. The public `GET /api/feed/` is unchanged (all
+users grouped with their posts and likes).
+
+## Media uploads
+
+`User.avatar` and `Post.image` are optional image fields (validated by Pillow).
+Upload via multipart: `PATCH /api/users/me/` with an `avatar` file, or
+`POST /api/posts/` with an `image` file. Uploads live under `MEDIA_ROOT` on the
+`mediadata` docker volume. In dev the app serves `/media/` directly (set
+`SERVE_MEDIA=1`, on by default under `config.settings.dev`); **in production
+serve `/media/` via nginx or object storage (S3) — the app does not.**
 
 ## Makefile shortcuts
 
