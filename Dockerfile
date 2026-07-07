@@ -13,6 +13,8 @@ COPY --from=builder /wheels /wheels
 RUN pip install --no-cache-dir /wheels/* && rm -rf /wheels
 
 COPY . .
+RUN DJANGO_SETTINGS_MODULE=config.settings.prod SECRET_KEY=collectstatic-build-only \
+    python manage.py collectstatic --noinput
 RUN chown -R appuser:appuser /app
 USER appuser
 
