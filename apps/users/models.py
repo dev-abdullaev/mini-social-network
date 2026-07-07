@@ -56,6 +56,23 @@ class EmailVerificationToken(UUIDModel, CreatedAtModel):
         return self.used_at is None and self.expires_at > timezone.now()
 
 
+class Follow(UUIDModel, CreatedAtModel):
+    follower = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="following"
+    )
+    following = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="followers"
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["follower", "following"], name="unique_follow"),
+            models.CheckConstraint(
+                condition=~models.Q(follower=models.F("following")), name="no_self_follow"
+            ),
+        ]
+
+
 class PasswordResetToken(UUIDModel, CreatedAtModel):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="password_reset_tokens"

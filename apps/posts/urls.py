@@ -5,6 +5,7 @@ from .views import (
     CommentDeleteView,
     CommentListCreateView,
     FeedView,
+    FollowingFeedView,
     LikeView,
     PostViewSet,
 )
@@ -13,6 +14,7 @@ router = DefaultRouter()
 router.register("posts", PostViewSet, basename="post")
 
 urlpatterns = [
+    path("feed/following/", FollowingFeedView.as_view(), name="following-feed"),
     path("feed/", FeedView.as_view(), name="feed"),
     path(
         "posts/<uuid:post_id>/comments/",

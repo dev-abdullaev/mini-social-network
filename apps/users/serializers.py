@@ -61,6 +61,12 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     new_password = serializers.CharField(write_only=True, validators=[validate_password])
 
 
+class FollowUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "username", "full_name"]
+
+
 class UserUpdateSerializer(serializers.ModelSerializer):
     username = serializers.CharField(
         min_length=3,

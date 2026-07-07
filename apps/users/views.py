@@ -1,4 +1,5 @@
 from django.db import IntegrityError, transaction
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, status
@@ -12,8 +13,9 @@ from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, Ou
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from . import lockout
-from .models import EmailVerificationToken, PasswordResetToken, User
+from .models import EmailVerificationToken, Follow, PasswordResetToken, User
 from .serializers import (
+    FollowUserSerializer,
     LoginSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
@@ -112,6 +114,49 @@ class UserMeView(generics.UpdateAPIView):
                 serializer.save()
         except IntegrityError as exc:
             raise ValidationError({"username": ["This username is already taken."]}) from exc
+
+
+class FollowView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, user_id):
+        target = get_object_or_404(User, pk=user_id)
+        if target.id == request.user.id:
+            return Response(
+                {"detail": "You cannot follow yourself."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        _, created = Follow.objects.get_or_create(follower=request.user, following=target)
+        if not created:
+            return Response({"detail": "Already following."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": "Followed."}, status=status.HTTP_201_CREATED)
+
+    def delete(self, request, user_id):
+        deleted, _ = Follow.objects.filter(follower=request.user, following_id=user_id).delete()
+        if not deleted:
+            return Response({"detail": "Not following."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class FollowersListView(generics.ListAPIView):
+    serializer_class = FollowUserSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        get_object_or_404(User, pk=self.kwargs["user_id"])
+        return User.objects.filter(following__following_id=self.kwargs["user_id"]).order_by(
+            "username"
+        )
+
+
+class FollowingListView(generics.ListAPIView):
+    serializer_class = FollowUserSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        get_object_or_404(User, pk=self.kwargs["user_id"])
+        return User.objects.filter(followers__follower_id=self.kwargs["user_id"]).order_by(
+            "username"
+        )
 
 
 class VerifyEmailView(APIView):

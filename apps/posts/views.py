@@ -92,6 +92,18 @@ class LikeView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class FollowingFeedView(generics.ListAPIView):
+    serializer_class = PostSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            Post.objects.filter(author__followers__follower=self.request.user)
+            .select_related("author")
+            .order_by("-created_at")
+        )
+
+
 class FeedView(generics.ListAPIView):
     serializer_class = FeedUserSerializer
     permission_classes = [AllowAny]

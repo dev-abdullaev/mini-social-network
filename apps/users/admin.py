@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import EmailVerificationToken, User
+from .models import EmailVerificationToken, Follow, User
 
 
 @admin.register(User)
@@ -33,3 +33,12 @@ class EmailVerificationTokenAdmin(admin.ModelAdmin):
     search_fields = ("user__email", "user__username")
     ordering = ("-created_at",)
     readonly_fields = ("id", "user", "token", "created_at", "expires_at", "used_at")
+
+
+@admin.register(Follow)
+class FollowAdmin(admin.ModelAdmin):
+    list_display = ("follower", "following", "created_at")
+    search_fields = ("follower__username", "following__username")
+    ordering = ("-created_at",)
+    readonly_fields = ("id", "created_at")
+    autocomplete_fields = ("follower", "following")
