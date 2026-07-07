@@ -29,6 +29,27 @@ def send_verification_email(self, user_id, token):
         raise self.retry(exc=exc) from exc
 
 
+@shared_task(bind=True, max_retries=3, default_retry_delay=30)
+def send_password_reset_email(self, user_id, token):
+    user = User.objects.filter(pk=user_id).first()
+    if user is None:
+        return
+    reset_url = f"{settings.SITE_URL}/api/auth/password-reset/confirm/?token={token}"
+    try:
+        send_mail(
+            subject="Parolni tiklash",
+            message=(
+                f"Salom {user.username},\n\n"
+                f"Parolingizni tiklash uchun quyidagi havolani oching:\n{reset_url}\n\n"
+                f"Havola {settings.PASSWORD_RESET_TOKEN_TTL_HOURS} soatdan so'ng eskiradi."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+        )
+    except Exception as exc:
+        raise self.retry(exc=exc) from exc
+
+
 @shared_task
 def cleanup_unverified_users():
     cutoff = timezone.now() - timedelta(hours=settings.UNVERIFIED_USER_TTL_HOURS)

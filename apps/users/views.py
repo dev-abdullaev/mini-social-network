@@ -11,9 +11,16 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from . import lockout
-from .models import EmailVerificationToken, User
-from .serializers import LoginSerializer, RegisterSerializer, UserSerializer, UserUpdateSerializer
-from .tasks import send_verification_email
+from .models import EmailVerificationToken, PasswordResetToken, User
+from .serializers import (
+    LoginSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
+    RegisterSerializer,
+    UserSerializer,
+    UserUpdateSerializer,
+)
+from .tasks import send_password_reset_email, send_verification_email
 
 
 class RegisterView(generics.CreateAPIView):
@@ -149,3 +156,45 @@ class ResendVerificationView(APIView):
         token = EmailVerificationToken.issue(request.user)
         send_verification_email.delay(str(request.user.id), token.token)
         return Response({"detail": "Verification email sent."})
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "register"
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = User.objects.filter(email__iexact=serializer.validated_data["email"]).first()
+        # Do NOT reveal whether the email exists (anti-enumeration): always 200.
+        if user is not None and user.is_active:
+            token = PasswordResetToken.issue(user)
+            send_password_reset_email.delay(str(user.id), token.token)
+        return Response({"detail": "If that email exists, a reset link has been sent."})
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            token = (
+                PasswordResetToken.objects.select_for_update()
+                .select_related("user")
+                .filter(token=serializer.validated_data["token"])
+                .first()
+            )
+            if token is None or not token.is_valid:
+                return Response(
+                    {"detail": "Invalid or expired token."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            token.used_at = timezone.now()
+            token.save(update_fields=["used_at"])
+            user = token.user
+            user.set_password(serializer.validated_data["new_password"])
+            user.save(update_fields=["password", "updated_at"])
+        return Response({"detail": "Password has been reset."})

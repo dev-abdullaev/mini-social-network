@@ -54,3 +54,24 @@ class EmailVerificationToken(UUIDModel, CreatedAtModel):
     @property
     def is_valid(self):
         return self.used_at is None and self.expires_at > timezone.now()
+
+
+class PasswordResetToken(UUIDModel, CreatedAtModel):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="password_reset_tokens"
+    )
+    token = models.CharField(max_length=64, unique=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    @classmethod
+    def issue(cls, user):
+        return cls.objects.create(
+            user=user,
+            token=secrets.token_urlsafe(32),
+            expires_at=timezone.now() + timedelta(hours=settings.PASSWORD_RESET_TOKEN_TTL_HOURS),
+        )
+
+    @property
+    def is_valid(self):
+        return self.used_at is None and self.expires_at > timezone.now()
