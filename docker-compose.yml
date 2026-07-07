@@ -27,7 +27,9 @@ services:
 
   web:
     build: .
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     environment:
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
@@ -42,7 +44,9 @@ services:
   celery_worker:
     build: .
     command: celery -A config worker --loglevel=info
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     environment:
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
@@ -55,7 +59,9 @@ services:
   celery_beat:
     build: .
     command: celery -A config beat --loglevel=info
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     environment:
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
