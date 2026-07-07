@@ -13,7 +13,7 @@ def cleanup_old_posts():
     if not days:
         return 0
     cutoff = timezone.now() - timedelta(days=days)
-    stale = Post.objects.filter(created_at__lt=cutoff)
-    count = stale.count()
-    stale.delete()
-    return count
+    pks = list(Post.objects.filter(created_at__lt=cutoff).values_list("pk", flat=True))
+    for i in range(0, len(pks), 500):
+        Post.objects.filter(pk__in=pks[i : i + 500]).delete()
+    return len(pks)

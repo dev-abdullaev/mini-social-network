@@ -4,6 +4,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
+from django.db.models.functions import Upper
 from django.utils import timezone
 
 from apps.core.models import CreatedAtModel, TimeStampedModel, UUIDModel
@@ -23,6 +24,12 @@ class User(UUIDModel, TimeStampedModel, AbstractBaseUser, PermissionsMixin):
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username", "full_name"]
+
+    class Meta:
+        indexes = [
+            models.Index(Upper("email"), name="user_email_ci_idx"),
+            models.Index(Upper("username"), name="user_username_ci_idx"),
+        ]
 
     def __str__(self):
         return self.username

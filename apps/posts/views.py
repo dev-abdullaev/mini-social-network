@@ -1,4 +1,4 @@
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, status, viewsets
@@ -35,7 +35,7 @@ class PostViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Post.objects.select_related("author").order_by("-created_at")
         if self.action == "retrieve":
-            qs = qs.prefetch_related("comments__author")
+            qs = qs.annotate(comment_count=Count("comments"))
         return qs
 
     def perform_create(self, serializer):

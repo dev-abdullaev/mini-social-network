@@ -92,3 +92,14 @@ def test_post_detail_includes_comments(api_client):
     body = response.json()
     assert len(body["comments"]) == 1
     assert body["comments"][0]["content"] == "First!"
+
+
+def test_post_detail_comments_bounded_to_ten(api_client):
+    post = PostFactory()
+    for _ in range(12):
+        CommentFactory(post=post)
+    response = api_client.get(f"/api/posts/{post.id}/")
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["comments"]) == 10
+    assert body["comment_count"] == 12

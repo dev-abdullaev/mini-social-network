@@ -32,7 +32,11 @@ def send_verification_email(self, user_id, token):
 @shared_task
 def cleanup_unverified_users():
     cutoff = timezone.now() - timedelta(hours=settings.UNVERIFIED_USER_TTL_HOURS)
-    stale = User.objects.filter(is_verified=False, is_staff=False, created_at__lt=cutoff)
-    count = stale.count()
-    stale.delete()
-    return count
+    pks = list(
+        User.objects.filter(is_verified=False, is_staff=False, created_at__lt=cutoff).values_list(
+            "pk", flat=True
+        )
+    )
+    for i in range(0, len(pks), 500):
+        User.objects.filter(pk__in=pks[i : i + 500]).delete()
+    return len(pks)

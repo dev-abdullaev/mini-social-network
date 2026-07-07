@@ -33,10 +33,15 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class PostDetailSerializer(PostSerializer):
-    comments = CommentSerializer(many=True, read_only=True)
+    comments = serializers.SerializerMethodField()
+    comment_count = serializers.IntegerField(read_only=True)
 
     class Meta(PostSerializer.Meta):
-        fields = PostSerializer.Meta.fields + ["comments"]
+        fields = PostSerializer.Meta.fields + ["comments", "comment_count"]
+
+    def get_comments(self, obj):
+        recent = obj.comments.select_related("author").order_by("-created_at")[:10]
+        return CommentSerializer(recent, many=True).data
 
 
 class FeedPostSerializer(serializers.ModelSerializer):
