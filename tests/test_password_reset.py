@@ -83,3 +83,41 @@ def test_confirm_weak_password(api_client):
     assert response.status_code == 400
     user.refresh_from_db()
     assert user.check_password("password123")
+
+
+def test_reset_revokes_existing_sessions(api_client):
+    user = UserFactory(email="s@example.com")
+    # login to get a refresh token
+    tokens = api_client.post(
+        LOGIN_URL, {"email": "s@example.com", "password": "password123"}
+    ).json()
+    token = PasswordResetToken.issue(user)
+    resp = api_client.post(
+        CONFIRM_URL,
+        {"token": token.token, "new_password": "brandNewPass99"},
+    )
+    assert resp.status_code == 200
+    # the old refresh must now be blacklisted
+    r = api_client.post("/api/auth/refresh/", {"refresh": tokens["refresh"]})
+    assert r.status_code == 401
+
+
+def test_confirm_invalidates_other_unused_tokens(api_client):
+    user = UserFactory(email="kam2@example.com")
+    stale_token = PasswordResetToken.issue(user)
+    active_token = PasswordResetToken.issue(user)
+    response = api_client.post(
+        CONFIRM_URL, {"token": active_token.token, "new_password": "newpass456"}
+    )
+    assert response.status_code == 200
+    stale_token.refresh_from_db()
+    assert stale_token.used_at is not None
+
+
+def test_confirm_inactive_user(api_client):
+    user = UserFactory(email="inactive@example.com", is_active=False)
+    token = PasswordResetToken.issue(user)
+    response = api_client.post(CONFIRM_URL, {"token": token.token, "new_password": "newpass456"})
+    assert response.status_code == 400
+    user.refresh_from_db()
+    assert user.check_password("password123")

@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from . import lockout
@@ -176,6 +177,8 @@ class PasswordResetRequestView(APIView):
 
 class PasswordResetConfirmView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
 
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
@@ -187,7 +190,7 @@ class PasswordResetConfirmView(APIView):
                 .filter(token=serializer.validated_data["token"])
                 .first()
             )
-            if token is None or not token.is_valid:
+            if token is None or not token.is_valid or not token.user.is_active:
                 return Response(
                     {"detail": "Invalid or expired token."},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -197,4 +200,9 @@ class PasswordResetConfirmView(APIView):
             user = token.user
             user.set_password(serializer.validated_data["new_password"])
             user.save(update_fields=["password", "updated_at"])
+            for outstanding in OutstandingToken.objects.filter(user=user):
+                BlacklistedToken.objects.get_or_create(token=outstanding)
+            PasswordResetToken.objects.filter(user=user, used_at__isnull=True).exclude(
+                pk=token.pk
+            ).update(used_at=timezone.now())
         return Response({"detail": "Password has been reset."})
