@@ -16,11 +16,11 @@ def send_verification_email(self, user_id, token):
     verify_url = f"{settings.SITE_URL}/api/auth/verify-email/?token={token}"
     try:
         send_mail(
-            subject="Verify your email",
+            subject="Emailingizni tasdiqlang",
             message=(
-                f"Hi {user.username},\n\n"
-                f"Confirm your email by opening this link:\n{verify_url}\n\n"
-                f"The link expires in {settings.VERIFICATION_TOKEN_TTL_HOURS} hours."
+                f"Salom {user.username},\n\n"
+                f"Emailingizni tasdiqlash uchun quyidagi havolani oching:\n{verify_url}\n\n"
+                f"Havola {settings.VERIFICATION_TOKEN_TTL_HOURS} soatdan so'ng eskiradi."
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
