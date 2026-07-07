@@ -1,24 +1,15 @@
 import os
-import sys
 from datetime import timedelta
 from pathlib import Path
 
 from celery.schedules import crontab
-from django.core.exceptions import ImproperlyConfigured
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "insecure-dev-key")
 DEBUG = os.environ.get("DEBUG", "0") == "1"
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 SITE_URL = os.environ.get("SITE_URL", "http://localhost:8000")
-
-TESTING = "pytest" in sys.argv[0] or (len(sys.argv) > 1 and sys.argv[1] == "test")
-
-if not DEBUG and not TESTING and SECRET_KEY == "insecure-dev-key":
-    raise ImproperlyConfigured(
-        "SECRET_KEY environment variable must be set when DEBUG is disabled."
-    )
 
 INSTALLED_APPS = [
     "django.contrib.auth",

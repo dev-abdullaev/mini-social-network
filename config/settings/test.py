@@ -1,4 +1,4 @@
-from .settings import *  # noqa: F403
+from .base import *  # noqa: F403
 
 SECRET_KEY = "test-only-secret-key-" + "x" * 48
 

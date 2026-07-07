@@ -1,8 +1,8 @@
 FROM python:3.12-slim AS builder
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
+COPY requirements/ requirements/
+RUN pip wheel --no-cache-dir --wheel-dir /wheels -r requirements/prod.txt
 
 FROM python:3.12-slim
 

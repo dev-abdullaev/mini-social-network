@@ -68,7 +68,9 @@ container console instead of sending them.
 
 ## Project structure
 
-    config/       # settings, urls, celery app
+    config/                  # urls, celery app
+    config/settings/         # base/local/dev/prod/test settings package
+    requirements/             # base/local/dev/prod requirement files
     apps/core/    # shared pagination + permission classes
     apps/users/   # User model, JWT auth, email verification, cleanup task
     apps/posts/   # posts, comments, likes, feed, post TTL task
@@ -108,10 +110,10 @@ list. The most useful ones:
 ## Running tests locally
 
     make services        # or: docker compose up -d db redis
-    make install         # or: python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+    make install         # or: python3 -m venv .venv && .venv/bin/pip install -r requirements/local.txt
     make test            # or: .venv/bin/pytest
 
-Note: running bare `manage.py` commands on the host (outside docker and
-pytest) requires `DEBUG=1` or a real `SECRET_KEY` in the environment — the
-settings refuse to boot a production-shaped config with the insecure
-fallback key.
+Settings are split by environment under `config/settings/`: bare host-side
+`manage.py` uses `config.settings.local` by default (DEBUG on), docker
+compose uses `config.settings.dev`, and production should set
+`DJANGO_SETTINGS_MODULE=config.settings.prod`.

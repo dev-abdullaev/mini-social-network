@@ -17,7 +17,7 @@ help: ## Show available commands
 
 install: ## Create venv and install dev dependencies (for local tests/lint)
 	python3 -m venv .venv
-	$(VENV)/pip install -r requirements-dev.txt
+	$(VENV)/pip install -r requirements/local.txt
 
 precommit: install ## Install pre-commit hooks
 	$(VENV)/pip install pre-commit
