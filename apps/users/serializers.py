@@ -18,7 +18,7 @@ FULL_NAME_VALIDATOR = RegexValidator(
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "email", "username", "full_name", "is_verified", "created_at"]
+        fields = ["id", "email", "username", "full_name", "is_verified", "avatar", "created_at"]
         read_only_fields = fields
 
 
@@ -77,8 +77,9 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(
         min_length=2, max_length=100, required=False, validators=[FULL_NAME_VALIDATOR]
     )
+    avatar = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = User
-        fields = ["id", "email", "username", "full_name", "is_verified", "created_at"]
+        fields = ["id", "email", "username", "full_name", "is_verified", "avatar", "created_at"]
         read_only_fields = ["id", "email", "is_verified", "created_at"]

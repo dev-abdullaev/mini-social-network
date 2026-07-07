@@ -15,10 +15,11 @@ class PostSerializer(serializers.ModelSerializer):
     author = AuthorSerializer(read_only=True)
     title = serializers.CharField(min_length=5, max_length=255)
     content = serializers.CharField(max_length=10000)
+    image = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = Post
-        fields = ["id", "author", "title", "content", "created_at", "updated_at"]
+        fields = ["id", "author", "title", "content", "image", "created_at", "updated_at"]
         read_only_fields = ["id", "author", "created_at", "updated_at"]
 
 

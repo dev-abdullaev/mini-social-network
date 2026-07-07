@@ -19,6 +19,7 @@ class User(UUIDModel, TimeStampedModel, AbstractBaseUser, PermissionsMixin):
     is_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
 
     objects = UserManager()
 

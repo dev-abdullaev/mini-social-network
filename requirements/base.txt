@@ -10,3 +10,4 @@ redis>=5.2
 django-redis>=5.4
 psycopg[binary]>=3.2
 gunicorn>=23
+Pillow>=11.0

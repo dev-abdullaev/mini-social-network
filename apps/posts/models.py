@@ -10,6 +10,7 @@ class Post(UUIDModel, TimeStampedModel):
     )
     title = models.CharField(max_length=255)
     content = models.TextField(max_length=10000)
+    image = models.ImageField(upload_to="post_images/", null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]
