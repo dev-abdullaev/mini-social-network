@@ -1,5 +1,4 @@
 import secrets
-import uuid
 from datetime import timedelta
 
 from django.conf import settings
@@ -7,19 +6,18 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
 from django.utils import timezone
 
+from apps.core.models import CreatedAtModel, TimeStampedModel, UUIDModel
+
 from .managers import UserManager
 
 
-class User(AbstractBaseUser, PermissionsMixin):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+class User(UUIDModel, TimeStampedModel, AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
     username = models.CharField(max_length=32, unique=True)
     full_name = models.CharField(max_length=100)
     is_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     objects = UserManager()
 
@@ -30,13 +28,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.username
 
 
-class EmailVerificationToken(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+class EmailVerificationToken(UUIDModel, CreatedAtModel):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="verification_tokens"
     )
     token = models.CharField(max_length=64, unique=True)
-    created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
     used_at = models.DateTimeField(null=True, blank=True)
 
