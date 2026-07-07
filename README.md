@@ -89,11 +89,27 @@ account identifier for `LOGIN_LOCKOUT_MINUTES` after `LOGIN_MAX_FAILURES`
 consecutive failures. Registration and resend-verification are throttled via
 `REGISTER_THROTTLE_RATE` (default 10/hour) to prevent email-amplification abuse.
 
+## Makefile shortcuts
+
+Common commands are wrapped in a Makefile — run `make help` for the full
+list. The most useful ones:
+
+    make up              # build + start the full stack
+    make down            # stop it
+    make logs            # tail web logs (logs-worker / logs-beat for celery)
+    make migrate         # apply migrations inside the web container
+    make superuser       # create a Django superuser
+    make services        # start only db + redis (for local development)
+    make test            # run the test suite (needs make install + services)
+    make lint            # ruff check + format check (same as CI)
+    make format          # auto-fix and format
+    make cleanup-users   # manually purge stale unverified users
+
 ## Running tests locally
 
-    docker compose up -d db redis
-    python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-    .venv/bin/pytest
+    make services        # or: docker compose up -d db redis
+    make install         # or: python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+    make test            # or: .venv/bin/pytest
 
 Note: running bare `manage.py` commands on the host (outside docker and
 pytest) requires `DEBUG=1` or a real `SECRET_KEY` in the environment — the
