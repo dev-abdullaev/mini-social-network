@@ -144,6 +144,12 @@ list. The most useful ones:
     make lint            # ruff check + format check (same as CI)
     make format          # auto-fix and format
     make cleanup-users   # manually purge stale unverified users
+    make seed            # load demo data (5 users, 10 posts, comments, likes, follows)
+
+After `make seed`, log in as any demo user (`kamran`, `michael`, `alice`,
+`bob`, `diana`) with password `demopass123` to explore the API with realistic
+data. Demo accounts use the `@demo.local` email domain; `make seed` re-flushes
+them each run.
 
 ## Running tests locally
 

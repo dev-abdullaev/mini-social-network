@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 .PHONY: help install services up down restart build logs logs-worker logs-beat ps \
-	migrate makemigrations superuser shell dbshell cleanup-users \
+	migrate makemigrations superuser shell dbshell cleanup-users seed \
 	test test-file lint format precommit clean
 
 COMPOSE = docker compose
@@ -73,6 +73,9 @@ dbshell: ## Open a psql shell into the database
 
 cleanup-users: ## Manually delete stale unverified users
 	$(MANAGE) cleanup_unverified_users
+
+seed: ## Load demo data (users, posts, comments, likes, follows)
+	$(MANAGE) seed_demo --flush
 
 # ---------- Quality (local venv; db+redis must be up: make services) ----------
 
