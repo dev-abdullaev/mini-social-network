@@ -1,7 +1,12 @@
 from django.db.models import Count, Prefetch
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import generics, status, viewsets
 from rest_framework.filters import SearchFilter
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
@@ -9,7 +14,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.permissions import IsOwnerOrReadOnly, IsVerified
-from apps.core.serializers import DetailSerializer
+from apps.core.serializers import (
+    RESP_400,
+    RESP_401,
+    RESP_403,
+    RESP_404,
+    DetailSerializer,
+)
 from apps.users.models import User
 
 from .filters import PostFilter
@@ -27,31 +38,81 @@ from .serializers import (
         tags=["posts"],
         summary="List posts",
         description="List posts, newest first. Supports filtering and search.",
+        parameters=[
+            OpenApiParameter(
+                name="search",
+                type=str,
+                required=False,
+                description="Case-insensitive match against post title and content.",
+            ),
+            OpenApiParameter(
+                name="date_from",
+                type=str,
+                required=False,
+                description="ISO-8601 datetime; return posts created at or after this time.",
+            ),
+            OpenApiParameter(
+                name="date_to",
+                type=str,
+                required=False,
+                description="ISO-8601 datetime; return posts created at or before this time.",
+            ),
+        ],
     ),
     create=extend_schema(
         tags=["posts"],
         summary="Create a post",
         description="Create a new post as the authenticated, verified user.",
+        responses={
+            201: PostSerializer,
+            400: RESP_400,
+            401: RESP_401,
+            403: RESP_403,
+        },
     ),
     retrieve=extend_schema(
         tags=["posts"],
         summary="Get a post",
         description="Get a single post, including its recent comments and comment count.",
+        responses={
+            200: PostDetailSerializer,
+            404: RESP_404,
+        },
     ),
     update=extend_schema(
         tags=["posts"],
         summary="Replace a post",
         description="Fully replace a post. Only the post's author may update it.",
+        responses={
+            200: PostSerializer,
+            400: RESP_400,
+            401: RESP_401,
+            403: RESP_403,
+            404: RESP_404,
+        },
     ),
     partial_update=extend_schema(
         tags=["posts"],
         summary="Update a post",
         description="Partially update a post. Only the post's author may update it.",
+        responses={
+            200: PostSerializer,
+            400: RESP_400,
+            401: RESP_401,
+            403: RESP_403,
+            404: RESP_404,
+        },
     ),
     destroy=extend_schema(
         tags=["posts"],
         summary="Delete a post",
         description="Delete a post. Only the post's author may delete it.",
+        responses={
+            204: None,
+            401: RESP_401,
+            403: RESP_403,
+            404: RESP_404,
+        },
     ),
 )
 class PostViewSet(viewsets.ModelViewSet):
@@ -81,11 +142,22 @@ class PostViewSet(viewsets.ModelViewSet):
         tags=["comments"],
         summary="List comments on a post",
         description="List comments on the given post, oldest first.",
+        responses={
+            200: CommentSerializer,
+            404: RESP_404,
+        },
     ),
     post=extend_schema(
         tags=["comments"],
         summary="Add a comment to a post",
         description="Create a new comment on the given post as the authenticated, verified user.",
+        responses={
+            201: CommentSerializer,
+            400: RESP_400,
+            401: RESP_401,
+            403: RESP_403,
+            404: RESP_404,
+        },
     ),
 )
 class CommentListCreateView(generics.ListCreateAPIView):
@@ -109,6 +181,18 @@ class CommentListCreateView(generics.ListCreateAPIView):
     tags=["comments"],
     summary="Delete a comment",
     description="Delete a comment on a post. Only the comment's author may delete it.",
+    responses={
+        204: None,
+        401: RESP_401,
+        403: OpenApiResponse(
+            DetailSerializer,
+            description=(
+                "Permission denied: you are not the author of this comment. (Unlike "
+                "post writes, this endpoint does not require a verified email.)"
+            ),
+        ),
+        404: RESP_404,
+    },
 )
 class CommentDeleteView(generics.DestroyAPIView):
     serializer_class = CommentSerializer
@@ -170,6 +254,10 @@ class LikeView(APIView):
     tags=["feed"],
     summary="List posts from followed users",
     description="List posts authored by users the authenticated user follows, newest first.",
+    responses={
+        200: PostSerializer,
+        401: RESP_401,
+    },
 )
 class FollowingFeedView(generics.ListAPIView):
     serializer_class = PostSerializer

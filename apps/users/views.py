@@ -18,7 +18,14 @@ from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, Ou
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView as SimpleJWTTokenRefreshView
 
-from apps.core.serializers import DetailSerializer, TokenPairSerializer
+from apps.core.serializers import (
+    RESP_400,
+    RESP_401,
+    RESP_404,
+    RESP_429,
+    DetailSerializer,
+    TokenPairSerializer,
+)
 
 from . import lockout
 from .models import EmailVerificationToken, Follow, PasswordResetToken, User
@@ -45,10 +52,21 @@ from .tasks import send_password_reset_email, send_verification_email
     ),
     responses={
         201: UserSerializer,
-        400: OpenApiResponse(
-            description="Validation error (duplicate email/username, weak password, etc.)."
-        ),
+        400: RESP_400,
+        429: RESP_429,
     },
+    examples=[
+        OpenApiExample(
+            "Register",
+            value={
+                "email": "jane@example.com",
+                "username": "jane_doe",
+                "full_name": "Jane Doe",
+                "password": "correct-horse-battery",
+            },
+            request_only=True,
+        ),
+    ],
 )
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
@@ -89,8 +107,9 @@ class LoginView(APIView):
         request=LoginSerializer,
         responses={
             200: TokenPairSerializer,
-            401: DetailSerializer,
-            429: DetailSerializer,
+            400: RESP_400,
+            401: RESP_401,
+            429: RESP_429,
         },
         examples=[
             OpenApiExample(
@@ -136,7 +155,7 @@ class LoginView(APIView):
     ),
     responses={
         200: TokenPairSerializer,
-        401: DetailSerializer,
+        401: RESP_401,
     },
 )
 class TokenRefreshView(SimpleJWTTokenRefreshView):
@@ -179,6 +198,10 @@ class LogoutView(APIView):
     tags=["users"],
     summary="Get the current user",
     description="Return the profile of the authenticated user.",
+    responses={
+        200: UserSerializer,
+        401: RESP_401,
+    },
 )
 class MeView(generics.RetrieveAPIView):
     serializer_class = UserSerializer
@@ -192,6 +215,11 @@ class MeView(generics.RetrieveAPIView):
     tags=["users"],
     summary="Update the current user's profile",
     description="Partially update the authenticated user's profile (username, full name, avatar).",
+    responses={
+        200: UserUpdateSerializer,
+        400: RESP_400,
+        401: RESP_401,
+    },
 )
 class UserMeView(generics.UpdateAPIView):
     serializer_class = UserUpdateSerializer
@@ -256,6 +284,10 @@ class FollowView(APIView):
     tags=["users"],
     summary="List a user's followers",
     description="Return the users who follow the given user, ordered by username.",
+    responses={
+        200: FollowUserSerializer,
+        404: RESP_404,
+    },
 )
 class FollowersListView(generics.ListAPIView):
     serializer_class = FollowUserSerializer
@@ -272,6 +304,10 @@ class FollowersListView(generics.ListAPIView):
     tags=["users"],
     summary="List who a user is following",
     description="Return the users that the given user follows, ordered by username.",
+    responses={
+        200: FollowUserSerializer,
+        404: RESP_404,
+    },
 )
 class FollowingListView(generics.ListAPIView):
     serializer_class = FollowUserSerializer
@@ -332,8 +368,9 @@ class ResendVerificationView(APIView):
         request=None,
         responses={
             200: DetailSerializer,
-            400: DetailSerializer,
-            401: DetailSerializer,
+            400: RESP_400,
+            401: RESP_401,
+            429: RESP_429,
         },
     )
     def post(self, request):
@@ -360,7 +397,11 @@ class PasswordResetRequestView(APIView):
             "leaking account existence."
         ),
         request=PasswordResetRequestSerializer,
-        responses={200: DetailSerializer},
+        responses={
+            200: DetailSerializer,
+            400: RESP_400,
+            429: RESP_429,
+        },
     )
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
@@ -387,7 +428,25 @@ class PasswordResetConfirmView(APIView):
             "sessions must log in again."
         ),
         request=PasswordResetConfirmSerializer,
-        responses={200: DetailSerializer, 400: DetailSerializer},
+        responses={
+            200: DetailSerializer,
+            400: OpenApiResponse(
+                DetailSerializer,
+                description=(
+                    "Validation error. Either a field-keyed body for an invalid/weak "
+                    'new_password, e.g. {"new_password": ["..."]}, or a plain '
+                    '{"detail": "Invalid or expired token."} if the reset token is '
+                    "missing, already used, or expired."
+                ),
+            ),
+            429: OpenApiResponse(
+                DetailSerializer,
+                description=(
+                    'Rate limit exceeded. This endpoint shares the "login" throttle '
+                    "scope with the login endpoint."
+                ),
+            ),
+        },
         examples=[
             OpenApiExample(
                 "Confirm reset",
