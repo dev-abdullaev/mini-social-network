@@ -14,7 +14,12 @@ class Post(UUIDModel, TimeStampedModel):
 
     class Meta:
         ordering = ["-created_at"]
-        indexes = [models.Index(fields=["-created_at"])]
+        indexes = [
+            models.Index(fields=["-created_at"]),
+            # Serves the follow-feed and per-author feed prefetch
+            # (filter by author + order by -created_at).
+            models.Index(fields=["author", "-created_at"], name="post_author_created_idx"),
+        ]
 
     def __str__(self):
         return self.title
@@ -29,6 +34,10 @@ class Comment(UUIDModel, CreatedAtModel):
 
     class Meta:
         ordering = ["created_at"]
+        # Serves the per-post comment list and detail slice
+        # (filter by post + order by created_at). Backward scan covers the
+        # DESC latest-10 slice too, so no separate DESC index is needed.
+        indexes = [models.Index(fields=["post", "created_at"], name="comment_post_created_idx")]
 
 
 class Like(UUIDModel, CreatedAtModel):

@@ -30,6 +30,12 @@ class User(UUIDModel, TimeStampedModel, AbstractBaseUser, PermissionsMixin):
         indexes = [
             models.Index(Upper("email"), name="user_email_ci_idx"),
             models.Index(Upper("username"), name="user_username_ci_idx"),
+            # Partial index for the hourly unverified-user cleanup scan.
+            models.Index(
+                fields=["created_at"],
+                name="user_unverified_cleanup_idx",
+                condition=models.Q(is_verified=False, is_staff=False),
+            ),
         ]
 
     def __str__(self):
