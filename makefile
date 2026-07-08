@@ -26,7 +26,7 @@ precommit: install ## Install pre-commit hooks
 # ---------- Docker stack ----------
 
 up: .env ## Build and start the full stack (web, db, redis, celery worker + beat)
-	$(COMPOSE) up --build -d
+	$(COMPOSE) up --build
 
 down: ## Stop the stack (data volume is kept)
 	$(COMPOSE) down
