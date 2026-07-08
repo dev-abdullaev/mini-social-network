@@ -1,7 +1,12 @@
 from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+)
 from rest_framework import generics, status
 from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -11,12 +16,16 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView as SimpleJWTTokenRefreshView
+
+from apps.core.serializers import DetailSerializer, TokenPairSerializer
 
 from . import lockout
 from .models import EmailVerificationToken, Follow, PasswordResetToken, User
 from .serializers import (
     FollowUserSerializer,
     LoginSerializer,
+    LogoutSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     RegisterSerializer,
@@ -26,6 +35,21 @@ from .serializers import (
 from .tasks import send_password_reset_email, send_verification_email
 
 
+@extend_schema(
+    tags=["auth"],
+    summary="Register a new user",
+    description=(
+        "Create a new user account. The account is created unverified; a verification "
+        "email is sent immediately, and the user must call the verify-email endpoint "
+        "before they can use verification-gated features."
+    ),
+    responses={
+        201: UserSerializer,
+        400: OpenApiResponse(
+            description="Validation error (duplicate email/username, weak password, etc.)."
+        ),
+    },
+)
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
@@ -52,6 +76,35 @@ class LoginView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "login"
 
+    @extend_schema(
+        tags=["auth"],
+        summary="Log in",
+        description=(
+            "Authenticate with either an email or a username plus a password, and receive "
+            "a JWT access/refresh token pair. Use the access token as "
+            "`Authorization: Bearer <access>` on subsequent requests. After too many failed "
+            "attempts for the same identifier in a short window, the identifier is "
+            "temporarily locked out and login returns 429 regardless of credentials."
+        ),
+        request=LoginSerializer,
+        responses={
+            200: TokenPairSerializer,
+            401: DetailSerializer,
+            429: DetailSerializer,
+        },
+        examples=[
+            OpenApiExample(
+                "Login with email",
+                value={"email": "jane@example.com", "password": "correct-horse-battery"},
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Login with username",
+                value={"username": "jane_doe", "password": "correct-horse-battery"},
+                request_only=True,
+            ),
+        ],
+    )
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -74,9 +127,39 @@ class LoginView(APIView):
         return Response({"access": str(refresh.access_token), "refresh": str(refresh)})
 
 
+@extend_schema(
+    tags=["auth"],
+    summary="Refresh access token",
+    description=(
+        "Exchange a valid refresh token for a new access token. Refresh token rotation is "
+        "enabled, so a new refresh token is also returned and the old one is blacklisted."
+    ),
+    responses={
+        200: TokenPairSerializer,
+        401: DetailSerializer,
+    },
+)
+class TokenRefreshView(SimpleJWTTokenRefreshView):
+    """Thin wrapper around simplejwt's TokenRefreshView solely to attach OpenAPI metadata."""
+
+
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["auth"],
+        summary="Log out",
+        description=(
+            "Blacklist the given refresh token, invalidating it for future use. Requires a "
+            "valid access token in the Authorization header."
+        ),
+        request=LogoutSerializer,
+        responses={
+            205: None,
+            400: DetailSerializer,
+            401: DetailSerializer,
+        },
+    )
     def post(self, request):
         refresh = request.data.get("refresh")
         if not refresh:
@@ -92,6 +175,11 @@ class LogoutView(APIView):
         return Response(status=status.HTTP_205_RESET_CONTENT)
 
 
+@extend_schema(
+    tags=["users"],
+    summary="Get the current user",
+    description="Return the profile of the authenticated user.",
+)
 class MeView(generics.RetrieveAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
@@ -100,6 +188,11 @@ class MeView(generics.RetrieveAPIView):
         return self.request.user
 
 
+@extend_schema(
+    tags=["users"],
+    summary="Update the current user's profile",
+    description="Partially update the authenticated user's profile (username, full name, avatar).",
+)
 class UserMeView(generics.UpdateAPIView):
     serializer_class = UserUpdateSerializer
     permission_classes = [IsAuthenticated]
@@ -119,6 +212,18 @@ class UserMeView(generics.UpdateAPIView):
 class FollowView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["follows"],
+        summary="Follow a user",
+        description="Start following the given user. A user cannot follow themselves.",
+        request=None,
+        responses={
+            201: DetailSerializer,
+            400: DetailSerializer,
+            404: DetailSerializer,
+            401: DetailSerializer,
+        },
+    )
     def post(self, request, user_id):
         target = get_object_or_404(User, pk=user_id)
         if target.id == request.user.id:
@@ -130,6 +235,16 @@ class FollowView(APIView):
             return Response({"detail": "Already following."}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"detail": "Followed."}, status=status.HTTP_201_CREATED)
 
+    @extend_schema(
+        tags=["follows"],
+        summary="Unfollow a user",
+        description="Stop following the given user.",
+        responses={
+            204: None,
+            404: DetailSerializer,
+            401: DetailSerializer,
+        },
+    )
     def delete(self, request, user_id):
         deleted, _ = Follow.objects.filter(follower=request.user, following_id=user_id).delete()
         if not deleted:
@@ -137,6 +252,11 @@ class FollowView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(
+    tags=["users"],
+    summary="List a user's followers",
+    description="Return the users who follow the given user, ordered by username.",
+)
 class FollowersListView(generics.ListAPIView):
     serializer_class = FollowUserSerializer
     permission_classes = [AllowAny]
@@ -148,6 +268,11 @@ class FollowersListView(generics.ListAPIView):
         )
 
 
+@extend_schema(
+    tags=["users"],
+    summary="List who a user is following",
+    description="Return the users that the given user follows, ordered by username.",
+)
 class FollowingListView(generics.ListAPIView):
     serializer_class = FollowUserSerializer
     permission_classes = [AllowAny]
@@ -163,8 +288,11 @@ class VerifyEmailView(APIView):
     permission_classes = [AllowAny]
 
     @extend_schema(
+        tags=["auth"],
+        summary="Verify email address",
+        description="Consume a one-time email verification token and mark the account as verified.",
         parameters=[OpenApiParameter(name="token", type=str, required=True)],
-        responses={200: None, 400: None},
+        responses={200: DetailSerializer, 400: DetailSerializer},
     )
     def get(self, request):
         token_value = request.query_params.get("token", "")
@@ -194,6 +322,20 @@ class ResendVerificationView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "register"
 
+    @extend_schema(
+        tags=["auth"],
+        summary="Resend verification email",
+        description=(
+            "Send a new email verification token to the authenticated user, if not already "
+            "verified."
+        ),
+        request=None,
+        responses={
+            200: DetailSerializer,
+            400: DetailSerializer,
+            401: DetailSerializer,
+        },
+    )
     def post(self, request):
         if request.user.is_verified:
             return Response(
@@ -209,6 +351,17 @@ class PasswordResetRequestView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "register"
 
+    @extend_schema(
+        tags=["auth"],
+        summary="Request a password reset",
+        description=(
+            "Send a password reset link to the given email if an active account exists for "
+            "it. Always returns 200 regardless of whether the email is registered, to avoid "
+            "leaking account existence."
+        ),
+        request=PasswordResetRequestSerializer,
+        responses={200: DetailSerializer},
+    )
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -225,6 +378,24 @@ class PasswordResetConfirmView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "login"
 
+    @extend_schema(
+        tags=["auth"],
+        summary="Confirm a password reset",
+        description=(
+            "Set a new password using a valid password reset token. On success, all "
+            "outstanding JWT tokens for the user are blacklisted, so previously issued "
+            "sessions must log in again."
+        ),
+        request=PasswordResetConfirmSerializer,
+        responses={200: DetailSerializer, 400: DetailSerializer},
+        examples=[
+            OpenApiExample(
+                "Confirm reset",
+                value={"token": "a1b2c3d4e5f6", "new_password": "correct-horse-battery"},
+                request_only=True,
+            ),
+        ],
+    )
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

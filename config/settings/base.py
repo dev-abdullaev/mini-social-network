@@ -127,8 +127,44 @@ SIMPLE_JWT = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Mini Social Network API",
-    "DESCRIPTION": "Users, posts, comments, likes with JWT auth and email verification.",
+    "DESCRIPTION": (
+        "A mini social network API: users, posts, comments, likes and follows, with JWT "
+        "authentication and email verification.\n\n"
+        "**Authentication flow**\n\n"
+        "1. `POST /api/auth/register/` to create an account.\n"
+        "2. Confirm the account via `GET /api/auth/verify-email/?token=...` "
+        "(the token is emailed to the user).\n"
+        "3. `POST /api/auth/login/` with either `email` or `username` plus `password` to "
+        "receive an `access`/`refresh` token pair.\n"
+        "4. Send the access token on every authenticated request as "
+        "`Authorization: Bearer <access>`.\n"
+        "5. When the access token expires, `POST /api/auth/refresh/` with the `refresh` "
+        "token to obtain a new pair.\n"
+        "6. `POST /api/auth/logout/` with the `refresh` token to blacklist it and end the "
+        "session.\n\n"
+        "Use the Authorize button below and paste a raw access token (no `Bearer ` prefix "
+        "needed) to try authenticated endpoints in this UI."
+    ),
     "VERSION": "1.0.0",
+    "CONTACT": {
+        "name": "Mini Social Network API Team",
+        "email": "api-support@example.com",
+    },
+    "TAGS": [
+        {
+            "name": "auth",
+            "description": "Registration, login, tokens, email verification and password reset.",
+        },
+        {
+            "name": "users",
+            "description": "User profiles, the current-user account, followers/following listings.",
+        },
+        {"name": "posts", "description": "Creating, browsing and managing posts."},
+        {"name": "comments", "description": "Commenting on posts."},
+        {"name": "likes", "description": "Liking and unliking posts."},
+        {"name": "follows", "description": "Following and unfollowing other users."},
+        {"name": "feed", "description": "Aggregated feeds of posts."},
+    ],
     "SERVE_INCLUDE_SCHEMA": False,
     "SWAGGER_UI_DIST": "SIDECAR",
     "SWAGGER_UI_FAVICON_HREF": "SIDECAR",

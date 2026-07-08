@@ -52,6 +52,10 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField(help_text="The refresh token to blacklist.")
+
+
 class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
 

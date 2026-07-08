@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.users.models import User
@@ -40,6 +41,7 @@ class PostDetailSerializer(PostSerializer):
     class Meta(PostSerializer.Meta):
         fields = PostSerializer.Meta.fields + ["comments", "comment_count"]
 
+    @extend_schema_field(CommentSerializer(many=True))
     def get_comments(self, obj):
         recent = obj.comments.select_related("author").order_by("-created_at")[:10]
         return CommentSerializer(recent, many=True).data
@@ -52,6 +54,7 @@ class FeedPostSerializer(serializers.ModelSerializer):
         model = Post
         fields = ["id", "title", "content", "likes"]
 
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def get_likes(self, obj):
         return [str(like.user_id) for like in obj.likes.all()]
 
