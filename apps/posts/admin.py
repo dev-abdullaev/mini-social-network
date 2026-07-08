@@ -5,12 +5,16 @@ from .models import Comment, Like, Post
 
 @admin.register(Post)
 class PostAdmin(admin.ModelAdmin):
-    list_display = ("title", "author", "created_at", "updated_at")
+    list_display = ("title", "author", "has_image", "created_at", "updated_at")
     list_filter = ("created_at",)
     search_fields = ("title", "content", "author__username", "author__email")
     ordering = ("-created_at",)
     readonly_fields = ("id", "created_at", "updated_at")
     autocomplete_fields = ("author",)
+
+    @admin.display(boolean=True, description="image")
+    def has_image(self, obj):
+        return bool(obj.image)
 
 
 @admin.register(Comment)

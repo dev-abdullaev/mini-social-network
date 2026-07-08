@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import EmailVerificationToken, Follow, User
+from .models import EmailVerificationToken, Follow, PasswordResetToken, User
 
 
 @admin.register(User)
@@ -11,7 +11,7 @@ class UserAdmin(admin.ModelAdmin):
     ordering = ("-created_at",)
     readonly_fields = ("id", "password", "created_at", "updated_at", "last_login")
     fieldsets = (
-        (None, {"fields": ("id", "email", "username", "full_name", "password")}),
+        (None, {"fields": ("id", "email", "username", "full_name", "avatar", "password")}),
         ("Status", {"fields": ("is_verified", "is_active", "is_staff", "is_superuser")}),
         ("Permissions", {"fields": ("groups", "user_permissions")}),
         ("Timestamps", {"fields": ("last_login", "created_at", "updated_at")}),
@@ -28,6 +28,15 @@ class UserAdmin(admin.ModelAdmin):
 
 @admin.register(EmailVerificationToken)
 class EmailVerificationTokenAdmin(admin.ModelAdmin):
+    list_display = ("user", "expires_at", "used_at", "created_at")
+    list_filter = ("used_at", "expires_at")
+    search_fields = ("user__email", "user__username")
+    ordering = ("-created_at",)
+    readonly_fields = ("id", "user", "token", "created_at", "expires_at", "used_at")
+
+
+@admin.register(PasswordResetToken)
+class PasswordResetTokenAdmin(admin.ModelAdmin):
     list_display = ("user", "expires_at", "used_at", "created_at")
     list_filter = ("used_at", "expires_at")
     search_fields = ("user__email", "user__username")
