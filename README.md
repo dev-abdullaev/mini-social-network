@@ -129,6 +129,38 @@ Upload via multipart: `PATCH /api/users/me/` with an `avatar` file, or
 `SERVE_MEDIA=1`, on by default under `config.settings.dev`); **in production
 serve `/media/` via nginx or object storage (S3) — the app does not.**
 
+## Admin panel
+
+A Django admin site is mounted at `/admin/` with every model registered
+(User, EmailVerificationToken, PasswordResetToken, Follow, Post, Comment,
+Like, plus the JWT blacklist). Create a superuser and log in:
+
+    make superuser        # or: docker compose exec web python manage.py createsuperuser
+    # then open http://localhost:8000/admin/
+
+Only superusers can grant staff/superuser status or permissions (non-superuser
+staff cannot escalate their own privileges). Password hashes and tokens are
+read-only in the admin.
+
+## Performance & indexing
+
+The schema is indexed for every hot-path query:
+
+- **Compound indexes** — `Comment(post, created_at)` (per-post comment list /
+  detail), `Post(author, -created_at)` (follow-feed and per-author prefetch),
+  plus the `(user, post)` and `(follower, following)` unique constraints that
+  double as lookup indexes for likes and follows.
+- **Functional indexes** — `UPPER(email)` / `UPPER(username)` so the
+  case-insensitive login lookup uses an index instead of a sequential scan.
+- **Partial index** — `created_at WHERE is_verified=false AND is_staff=false`
+  for the hourly unverified-user cleanup.
+- **No N+1** — the feed uses `Prefetch` (query count pinned to ≤4 by a test);
+  post list/detail use `select_related`/`prefetch_related`; post detail bounds
+  embedded comments to the latest 10 plus a `comment_count`.
+- **Runtime** — `CONN_MAX_AGE` (persistent DB connections), Celery
+  `worker_max_tasks_per_child` + `task_ignore_result`, and gunicorn
+  `--max-requests` for worker recycling.
+
 ## Makefile shortcuts
 
 Common commands are wrapped in a Makefile — run `make help` for the full
